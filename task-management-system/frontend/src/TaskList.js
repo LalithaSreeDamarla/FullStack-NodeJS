@@ -1,38 +1,68 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import axios from 'axios';
 
-// This component is responsible for fetching and displaying the list of tasks
-function TaskList() {
-  // useState hook to store tasks retrieved from the backend
-  const [tasks, setTasks] = useState([]);
+function TaskList({ tasks, onDelete, onEdit, onUpdate }) {
+  // Toggle task status between 'completed' and 'pending'
+  const toggleStatus = async (task) => {
+    const updatedStatus = task.status === 'completed' ? 'pending' : 'completed';
 
-  // useEffect runs once after the component loads — we use it to fetch tasks
-  useEffect(() => {
-    // Make a GET request to our Node.js backend to fetch all tasks
-    axios.get('http://localhost:5000/api/tasks')
-      .then(response => {
-        // Save the response data (task list) into the local state
-        setTasks(response.data);
-      })
-      .catch(error => {
-        // Log any errors that occur during the request
-        console.error('Error fetching tasks:', error);
+    try {
+      const res = await axios.put(`http://localhost:5000/api/tasks/${task._id}`, {
+        ...task,
+        status: updatedStatus
       });
-  }, []); // Empty dependency array = run only once after component mounts
+
+      // Notify parent to update state
+      onUpdate(res.data);
+    } catch (err) {
+      console.error('❌ Failed to update task status:', err);
+    }
+  };
 
   return (
     <div>
       <h2>📋 Task List</h2>
-
-      {/* If no tasks exist, show a message */}
       {tasks.length === 0 ? (
         <p>No tasks yet.</p>
       ) : (
-        // Otherwise, display all tasks in a list
         <ul>
-          {tasks.map(task => (
-            <li key={task._id}>
-              <strong>{task.title}</strong> - {task.status}
+          {tasks.filter(task => task && task._id).map(task => (
+            <li key={task._id} style={{ marginBottom: '8px' }}>
+              <input
+                type="checkbox"
+                checked={task.status === 'completed'}
+                onChange={() => toggleStatus(task)}
+              />{' '}
+              <strong>{task.title}</strong> — <em>{task.status}</em>
+
+              <button
+                onClick={() => onEdit(task)}
+                style={{
+                  marginLeft: '10px',
+                  backgroundColor: '#ffc107',
+                  border: 'none',
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                  borderRadius: '4px'
+                }}
+              >
+                ✏️ Edit
+              </button>
+
+              <button
+                onClick={() => onDelete(task._id)}
+                style={{
+                  marginLeft: '10px',
+                  color: 'white',
+                  backgroundColor: 'red',
+                  border: 'none',
+                  padding: '4px 8px',
+                  cursor: 'pointer',
+                  borderRadius: '4px'
+                }}
+              >
+                🗑️ Delete
+              </button>
             </li>
           ))}
         </ul>

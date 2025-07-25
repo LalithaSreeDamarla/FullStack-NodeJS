@@ -1,46 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-function AddTaskForm({ onTaskAdded }) {
-  // Form state to hold input values
+function AddTaskForm({ onTaskAdded, onTaskUpdated, editingTask, clearEditing }) {
   const [title, setTitle] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState('pending');
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent page reload
+  useEffect(() => {
+    if (editingTask) {
+      setTitle(editingTask.title || '');
+      setAssignedTo(editingTask.assignedTo || '');
+      setDueDate(editingTask.dueDate ? editingTask.dueDate.substring(0, 10) : '');
+      setStatus(editingTask.status || 'pending');
+    } else {
+      clearForm();
+    }
+  }, [editingTask]);
 
-    // Log form data to debug
-    console.log('🔼 Submitting task:', { title, assignedTo, dueDate, status });
+  const clearForm = () => {
+    setTitle('');
+    setAssignedTo('');
+    setDueDate('');
+    setStatus('pending');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
     try {
-      // Send POST request to backend to create a new task
-      const res = await axios.post('http://localhost:5000/api/tasks', {
-        title,
-        assignedTo,
-        dueDate,
-        status
-      });
+      if (editingTask) {
+        const res = await axios.put(`http://localhost:5000/api/tasks/${editingTask._id}`, {
+          title, assignedTo, dueDate, status
+        });
+        onTaskUpdated(res.data);
+        clearEditing();
+      } else {
+        const res = await axios.post('http://localhost:5000/api/tasks', {
+          title, assignedTo, dueDate, status
+        });
+        onTaskAdded(res.data);
+      }
 
-      // Clear the form after success
-      setTitle('');
-      setAssignedTo('');
-      setDueDate('');
-      setStatus('pending');
-
-      // Notify parent to refresh task list
-      onTaskAdded(res.data);
+      clearForm();
     } catch (err) {
-      console.error('❌ Error adding task:', err.response?.data || err.message);
-      alert('Task creation failed. Check the console for details.');
+      console.error('❌ Task save failed:', err);
+      alert('Something went wrong while saving the task.');
     }
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ marginBottom: '30px' }}>
-      <h2>➕ Add New Task</h2>
+      <h2>{editingTask ? '✏️ Edit Task' : '➕ Add New Task'}</h2>
 
       <input
         type="text"
@@ -65,7 +76,21 @@ function AddTaskForm({ onTaskAdded }) {
         <option value="in-progress">In Progress</option>
         <option value="completed">Completed</option>
       </select>{' '}
-      <button type="submit">Create Task</button>
+      <button type="submit">
+        {editingTask ? 'Update Task' : 'Create Task'}
+      </button>
+      {editingTask && (
+        <button
+          type="button"
+          onClick={() => {
+            clearEditing();
+            clearForm();
+          }}
+          style={{ marginLeft: '10px' }}
+        >
+          Cancel
+        </button>
+      )}
     </form>
   );
 }
